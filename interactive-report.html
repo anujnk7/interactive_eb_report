@@ -1,0 +1,1191 @@
+<html lang="en" class="scroll-smooth"><head><script>(function(firebaseConfig, initialAuthToken, appId) {
+        window.__firebase_config = firebaseConfig;
+        window.__initial_auth_token = initialAuthToken;
+        window.__app_id = appId;
+            })("\n{\n  \"apiKey\": \"AIzaSyCqyCcs2R2e7AegGjvFAwG98wlamtbHvZY\",\n  \"authDomain\": \"bard-frontend.firebaseapp.com\",\n  \"projectId\": \"bard-frontend\",\n  \"storageBucket\": \"bard-frontend.firebasestorage.app\",\n  \"messagingSenderId\": \"175205271074\",\n  \"appId\": \"1:175205271074:web:2b7bd4d34d33bf38e6ec7b\"\n}\n","eyJhbGciOiJSUzI1NiIsImtpZCI6IjhmODcxYTU0ODRjYWM0MjU5NTBiNzhiNGZhNWMxZGZlMjkzYjgwYWEiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0BiYXJkLWZyb250ZW5kLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwiYXVkIjoiaHR0cHM6XC9cL2lkZW50aXR5dG9vbGtpdC5nb29nbGVhcGlzLmNvbVwvZ29vZ2xlLmlkZW50aXR5LmlkZW50aXR5dG9vbGtpdC52MS5JZGVudGl0eVRvb2xraXQiLCJ1aWQiOiIxMjAyNjgzNDQwODkzMzY4NDgwNiIsImlzcyI6ImZpcmViYXNlLWFkbWluc2RrLWZic3ZjQGJhcmQtZnJvbnRlbmQuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJleHAiOjE3NDkyMDY4MTEsImlhdCI6MTc0OTIwMzIxMSwiYWxnIjoiUlMyNTYifQ.WrijRKbFDksRPdPsWP3naGyk_F58b5JAJweSqh9PvmZN1OrLIO2mrbLBhHHxNUjQLYKhcvk8wwlbgg2JdDayd3F7VLTmnqqolGxKNRXbQEkxXteE1FmR-tNV_pO3Jt9hJNh5qx_IIhz1Nyy3NYaXOVogUvcYjZGVaMllyz_O6VE_MFJkPXSDrNcC5TjAzs8MMXz8RK9MC8573wqv4vNEF0dD1lFlfBK8rxSZpK26Hvk5IlLWx5m-AeWyBan35tJKEcYDG5chyJ91pomJsn-n83UNiu3SKVeTEo0NhxzoTIErgWbBom0MkCDgcrw2roY36DyuFiR8labN2DufcOofcw","c_504322e2fe53b891_embeddable-ui-spa-downloadable-953")</script><script>(function() {
+  // Ensure this script is executed only once
+  if (window.firebaseAuthBridgeScriptLoaded) {
+    return;
+  }
+  window.firebaseAuthBridgeScriptLoaded = true;
+
+  let nextTokenPromiseId = 0;
+
+  // Stores { resolve, reject } for ongoing token requests
+  const pendingTokenPromises = {};
+
+  // Listen for messages from the Host Application
+  window.addEventListener('message', function(event) {
+
+    const messageData = event.data;
+
+  if (messageData && messageData.type === 'RESOLVE_NEW_FIREBASE_TOKEN') {
+      const { success, token, error, promiseId } = messageData ?? {};
+      if (pendingTokenPromises[promiseId]) {
+        if (success) {
+          pendingTokenPromises[promiseId].resolve(token);
+        } else {
+          pendingTokenPromises[promiseId].reject(new Error(error || 'Token refresh failed from host.'));
+        }
+        delete pendingTokenPromises[promiseId];
+      }
+    }
+  });
+
+  // Expose a function for the Generated App to request a new Firebase token
+  window.requestNewFirebaseToken = function() {
+    const currentPromiseId = nextTokenPromiseId++;
+    const promise = new Promise((resolve, reject) => {
+      pendingTokenPromises[currentPromiseId] = { resolve, reject };
+    });
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'REQUEST_NEW_FIREBASE_TOKEN',
+        promiseId: currentPromiseId
+      }, '*');
+    } else {
+      pendingTokenPromises[currentPromiseId].reject(new Error('No parent window to request token from.'));
+      delete pendingTokenPromises[currentPromiseId];
+    }
+    return promise;
+  };
+})();</script><script>let realOriginalGetUserMedia = null;
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  realOriginalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+}
+
+(function() {
+  if (navigator.mediaDevices && navigator.mediaDevices.__proto__) {
+    try {
+      Object.defineProperty(navigator.mediaDevices.__proto__, 'getUserMedia', {
+        get: function() {
+          return undefined; // Or throw an error
+        },
+        configurable: false
+      });
+    } catch (error) {
+      console.error("Error defining prototype getter:", error);
+    }
+  }
+})();
+
+(function() {
+  let originalGetUserMedia = realOriginalGetUserMedia;
+
+  const pendingMediaResolvers = {};
+  let nextMediaPromiseId = 0;
+
+  function interceptGetUserMedia() {
+    if (navigator.mediaDevices) {
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+        value: function(constraints) {
+          const mediaPromiseId = nextMediaPromiseId++;
+          const promise = new Promise((resolve, reject) => {
+            pendingMediaResolvers[mediaPromiseId] = (granted) => {
+              delete pendingMediaResolvers[mediaPromiseId];
+              if (granted) {
+                if (originalGetUserMedia) {
+                  originalGetUserMedia(constraints).then(resolve).catch(reject);
+                } else {
+                  reject(new Error("Original getUserMedia not available."));
+                }
+              } else {
+              reject(new DOMException('Permission denied', 'NotAllowedError'));
+            }
+          };
+        });
+
+        window.parent.postMessage({
+          type: 'requestMediaPermission',
+          constraints: constraints,
+          promiseId: mediaPromiseId,
+        }, '*');
+
+        return promise;
+      },
+      writable: false,
+      configurable: false
+    });
+    }
+  }
+
+  interceptGetUserMedia();
+
+  const observer = new MutationObserver(function(mutationsList, observer) {
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'reconfigured' && mutation.name === 'getUserMedia' && mutation.object === navigator.mediaDevices) {
+        interceptGetUserMedia();
+      } else if (mutation.type === 'attributes' && mutation.attributeName === 'getUserMedia' && mutation.target === navigator.mediaDevices) {
+        interceptGetUserMedia();
+      } else if (mutation.type === 'childList' && mutation.addedNodes) {
+        mutation.addedNodes.forEach(node => {
+          if (node === navigator.mediaDevices) {
+            interceptGetUserMedia();
+          }
+        });
+      }
+    }
+  });
+
+  window.addEventListener('message', function(event) {
+    if (event.data) {
+      if (event.data.type === 'resolveMediaPermission') {
+        const { promiseId, granted } = event.data;
+        if (pendingMediaResolvers[promiseId]) {
+          pendingMediaResolvers[promiseId](granted);
+        }
+      }
+    }
+  });
+
+})();</script><script>(function() {
+  const originalFetch = window.fetch;
+  const googleLlmBaseApiUrls = [
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict',
+    'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predictLongRunning',
+    'https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predict',
+    'https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning',
+  ];
+
+  const pendingFetchResolvers = {};
+  let nextPromiseId = 0;
+
+  function handleStringInput(input, optionsArgument) {
+    const actualUrl = input;
+    const fetchCallArgs = [actualUrl, optionsArgument];
+    const effectiveOptions = optionsArgument || {};
+    const bodyForApiKeyCheck = effectiveOptions.body;
+    const bodyForPostMessage = effectiveOptions.body;
+    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
+  }
+
+  function handleRequestInput(input, optionsArgument) {
+    const actualUrl = input.url;
+    const fetchCallArgs = [input, optionsArgument];
+    const effectiveOptions = { method: input.method, headers: new Headers(input.headers) };
+    let bodyForApiKeyCheck;
+    let bodyForPostMessage;
+
+    if (optionsArgument) {
+      if (optionsArgument.method) effectiveOptions.method = optionsArgument.method;
+      if (optionsArgument.headers) effectiveOptions.headers = new Headers(optionsArgument.headers);
+      if ('body' in optionsArgument) {
+        bodyForApiKeyCheck = optionsArgument.body;
+        bodyForPostMessage = optionsArgument.body;
+      } else {
+        bodyForApiKeyCheck = undefined;
+        bodyForPostMessage = input.body;
+      }
+    } else {
+      bodyForApiKeyCheck = undefined;
+      bodyForPostMessage = input.body;
+    }
+    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
+  }
+
+  window.fetch = function(input, optionsArgument) {
+    let actualUrl;
+    let fetchCallArgs;
+    let effectiveOptions = {};
+    let bodyForApiKeyCheck;
+    let bodyForPostMessage;
+
+    if (typeof input === 'string') {
+      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleStringInput(input, optionsArgument));
+    } else if (input instanceof Request) {
+      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleRequestInput(input, optionsArgument));
+    } else {
+      return originalFetch.apply(window, [input, optionsArgument]);
+    }
+
+    effectiveOptions.method = effectiveOptions.method || 'GET';
+    if (!effectiveOptions.headers) {
+      effectiveOptions.headers = new Headers();
+    }
+
+
+    if (typeof actualUrl === 'string' && googleLlmBaseApiUrls.some((url) => actualUrl.startsWith(url))) {
+      let apiKeyIsNull = true;
+
+      const regex = new RegExp("models/([^:]+)");
+      const modelNameMatch = actualUrl.match(regex);
+      const modelName = modelNameMatch ? modelNameMatch[1] : 'unspecified';
+
+
+      try {
+        const urlObject = new URL(actualUrl);  // Use URL object for robust parsing
+        const apiKeyParam = urlObject.searchParams.get('key');
+        if (apiKeyParam) {
+          apiKeyIsNull = false;
+        }
+      } catch (e) {
+        // Continue checks even if URL parsing fails
+      }
+
+      if (apiKeyIsNull && effectiveOptions.headers) {
+        const h = new Headers(effectiveOptions.headers);
+        const apiKeyHeaderValue = h.get('X-API-Key') || h.get('x-api-key');
+        if (apiKeyHeaderValue) {
+          apiKeyIsNull = false;
+          return originalFetch.apply(window, fetchCallArgs);
+        }
+      }
+
+      if (apiKeyIsNull && effectiveOptions.method && ['POST', 'PUT', 'PATCH'].includes(effectiveOptions.method.toUpperCase()) && typeof bodyForApiKeyCheck === 'string') {
+        try {
+          const bodyData = JSON.parse(bodyForApiKeyCheck);
+          if (bodyData && bodyData.apiKey) {
+            apiKeyIsNull = false;
+            return originalFetch.apply(window, fetchCallArgs);
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+      }
+
+      if(apiKeyIsNull) {
+        const promiseId = nextPromiseId++;
+        const promise = new Promise((resolve) => {
+          pendingFetchResolvers[promiseId] = (resolvedResponse) => {
+            delete pendingFetchResolvers[promiseId];
+            resolve(resolvedResponse);
+          };
+        });
+
+        let serializedBodyForPostMessage;
+        if (typeof bodyForPostMessage === 'string' || bodyForPostMessage == null) {
+            serializedBodyForPostMessage = bodyForPostMessage;
+        } else if (bodyForPostMessage instanceof ReadableStream) {
+            serializedBodyForPostMessage = null;
+        } else {
+            try {
+                serializedBodyForPostMessage = JSON.stringify(bodyForPostMessage);
+            } catch (e) {
+                serializedBodyForPostMessage = null;
+            }
+        }
+
+        const messageOptions = {
+            method: effectiveOptions.method,
+            headers: Object.fromEntries(new Headers(effectiveOptions.headers).entries()),
+            body: serializedBodyForPostMessage
+        };
+
+        window.parent.postMessage({
+          type: 'requestFetch',
+          url: actualUrl,
+          modelName: 'models/' + modelName,
+          options: messageOptions,
+          promiseId: promiseId,
+        }, '*');
+
+        return promise;
+      }
+      return originalFetch.apply(window, fetchCallArgs);
+    }
+    return originalFetch.apply(window, fetchCallArgs);
+  };
+
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'resolveFetch') {
+      const { promiseId, response } = event.data;
+      if (pendingFetchResolvers[promiseId]) {
+        try {
+          const reconstructedResponse = new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: new Headers(response.headers),
+          });
+          pendingFetchResolvers[promiseId](reconstructedResponse);
+        } catch (error) {
+          pendingFetchResolvers[promiseId](new Response(null, { status: 500, statusText: "Interceptor Response Reconstruction Error" }));
+        }
+      }
+    }
+  });
+
+})();</script><script>(function() {
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+
+    /**
+   * Normalizes an error event or a promise rejection reason into a structured error object.
+   * @param {*} errorEventOrReason The error object or reason.
+   * @return {object} Structured error data { message, name, stack }.
+   */
+  function getErrorObject(errorEventOrReason) {
+    if (errorEventOrReason instanceof Error) {
+      return {
+        message: errorEventOrReason.message,
+        name: errorEventOrReason.name,
+        stack: errorEventOrReason.stack,
+      };
+    }
+    // Fallback for non-Error objects.
+    try {
+      return {
+        message: JSON.stringify(errorEventOrReason),
+        name: 'UnknownErrorType',
+        stack: null,
+      };
+    } catch (e) {
+      return {
+        message: String(errorEventOrReason),
+        name: 'UnknownErrorTypeNonStringifiable',
+        stack: null,
+      };
+    }
+  }
+
+  /**
+   * Converts an array of arguments (from log/error) into a single string.
+   * Handles Error objects specially to include their message and stack.
+   * @param {Array<*>} args - Arguments passed to console methods.
+   * @return {string} A string representation of the arguments.
+   */
+  function stringifyArgs(args) {
+    return args
+      .map((arg) => {
+        if (arg instanceof Error) {
+          const {message, stack} = arg;
+          return `Error: ${message}${stack ? ('\nStack: ' + stack) : ''}`;
+        }
+        if (typeof arg === 'object' && arg !== null) {
+          try {
+            return JSON.stringify(arg);
+          } catch (error) {
+            return '[Circular Object]';
+          }
+        } else {
+          return String(arg);
+        }
+      })
+      .join(' ');
+  }
+
+  console.log = function(...args) {
+    const logString = stringifyArgs(args);
+    window.parent.postMessage({ type: 'log', message: logString }, '*');
+    originalConsoleLog.apply(console, args);
+  };
+
+  console.error = function(...args) {
+    let errorData;
+    if (args.length > 0 && args[0] instanceof Error) {
+      const err = args[0];
+      // If the first arg is an Error, capture its details.
+      errorData = {
+        type: 'error',
+        source: 'CONSOLE_ERROR',
+        ...getErrorObject(err),
+        rawArgsString: stringifyArgs(args.slice(1)),
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      // If not an Error object, treat all args as a general error message.
+      errorData = {
+        type: 'error',
+        source: 'CONSOLE_ERROR',
+        message: stringifyArgs(args),
+        name: 'ConsoleLoggedError',
+        stack: null,
+        timestamp: new Date().toISOString(),
+      };
+    }
+    window.parent.postMessage(errorData, '*');
+    originalConsoleError.apply(console, args);
+  };
+
+  // Listen for global unhandled synchronous errors.
+  window.addEventListener('error', function(event) {
+    const errorDetails = event.error ? getErrorObject(event.error) : {
+      message: event.message,
+      name: 'GlobalError',
+      stack: null,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+    };
+
+    window.parent.postMessage({
+      type: 'error',
+      source: 'global',
+      ...errorDetails,
+      message: errorDetails.message || event.message,
+      timestamp: new Date().toISOString(),
+    }, '*');
+  });
+
+  // Listen for unhandled promise rejections (asynchronous errors).
+  window.addEventListener('unhandledrejection', function(event) {
+    const errorDetails = getErrorObject(event.reason);
+
+    window.parent.postMessage({
+      type: 'error',
+      source: 'unhandledrejection',
+      ...errorDetails,
+      message: errorDetails.message || 'Unhandled Promise Rejection',
+      timestamp: new Date().toISOString(),
+    }, '*');
+  });
+
+})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Analysis of Embeddable UI Components</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF7;
+            color: #3D405B;
+        }
+        .nav-link {
+            transition: color 0.3s ease;
+        }
+        .nav-link.active, .nav-link:hover {
+            color: #D87A68;
+        }
+        .card {
+            background-color: #FFFFFF;
+            border: 1px solid #E0E0E0;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+        }
+        .accent-bg {
+            background-color: #D87A68;
+        }
+        .accent-text {
+            color: #D87A68;
+        }
+        .secondary-bg {
+            background-color: #6B8A9A;
+        }
+        .secondary-text {
+            color: #6B8A9A;
+        }
+        .subtle-bg {
+            background-color: #F8F4EF;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+            padding: 0 0.5rem;
+        }
+        .accordion-content.expanded {
+            padding-bottom: 1rem;
+        }
+        .process-step {
+            transition: all 0.3s ease;
+        }
+        .process-step:hover {
+            background-color: #F8F4EF;
+            border-color: #D87A68;
+        }
+        .gemini-btn {
+             background: linear-gradient(135deg, #6B8A9A 0%, #D87A68 100%);
+             transition: all 0.3s ease;
+             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .gemini-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #FFF;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #use-case-modal {
+            transition: opacity 0.3s ease;
+        }
+        #use-case-modal-content {
+            transition: transform 0.3s ease;
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.fixed{position:fixed}.sticky{position:sticky}.inset-0{inset:0px}.top-0{top:0px}.z-50{z-index:50}.mx-auto{margin-left:auto;margin-right:auto}.mb-12{margin-bottom:3rem}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mr-2{margin-right:0.5rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mt-4{margin-top:1rem}.mt-8{margin-top:2rem}.block{display:block}.inline-block{display:inline-block}.flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.hidden{display:none}.h-4{height:1rem}.h-6{height:1.5rem}.h-8{height:2rem}.w-4{width:1rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-full{width:100%}.max-w-2xl{max-width:42rem}.max-w-3xl{max-width:48rem}.max-w-4xl{max-width:56rem}.max-w-lg{max-width:32rem}.flex-1{flex:1 1 0%}.flex-grow{flex-grow:1}.border-collapse{border-collapse:collapse}.scale-95{--tw-scale-x:.95;--tw-scale-y:.95;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.transform{transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.list-inside{list-style-position:inside}.list-disc{list-style-type:disc}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-4{gap:1rem}.gap-8{gap:2rem}.space-x-8 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(2rem * var(--tw-space-x-reverse));margin-left:calc(2rem * calc(1 - var(--tw-space-x-reverse)))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.overflow-x-auto{overflow-x:auto}.scroll-smooth{scroll-behavior:smooth}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-md{border-radius:0.375rem}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-gray-200{--tw-border-opacity:1;border-color:rgb(229 231 235 / var(--tw-border-opacity, 1))}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.bg-black{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-600{--tw-bg-opacity:1;background-color:rgb(75 85 99 / var(--tw-bg-opacity, 1))}.bg-gray-800{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-white\/80{background-color:rgb(255 255 255 / 0.8)}.bg-opacity-60{--tw-bg-opacity:0.6}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-8{padding-left:2rem;padding-right:2rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-20{padding-top:5rem;padding-bottom:5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-8{padding-top:2rem;padding-bottom:2rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.pl-3{padding-left:0.75rem}.pr-10{padding-right:2.5rem}.text-left{text-align:left}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.leading-none{line-height:1}.leading-tight{line-height:1.25}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.text-green-500{--tw-text-opacity:1;color:rgb(34 197 94 / var(--tw-text-opacity, 1))}.text-red-500{--tw-text-opacity:1;color:rgb(239 68 68 / var(--tw-text-opacity, 1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.opacity-0{opacity:0}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.backdrop-blur-md{--tw-backdrop-blur:blur(12px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-300{transition-duration:300ms}.hover\:scale-105:hover{--tw-scale-x:1.05;--tw-scale-y:1.05;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.hover\:bg-gray-500:hover{--tw-bg-opacity:1;background-color:rgb(107 114 128 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-50:hover{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.hover\:text-gray-800:hover{--tw-text-opacity:1;color:rgb(31 41 55 / var(--tw-text-opacity, 1))}.focus\:border-indigo-500:focus{--tw-border-opacity:1;border-color:rgb(99 102 241 / var(--tw-border-opacity, 1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-indigo-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(99 102 241 / var(--tw-ring-opacity, 1))}@media (min-width: 640px){.sm\:text-sm{font-size:0.875rem;line-height:1.25rem}}@media (min-width: 768px){.md\:block{display:block}.md\:flex{display:flex}.md\:hidden{display:none}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}.md\:space-x-2 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(0.5rem * var(--tw-space-x-reverse));margin-left:calc(0.5rem * calc(1 - var(--tw-space-x-reverse)))}.md\:space-y-0 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0px * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0px * var(--tw-space-y-reverse))}.md\:p-8{padding:2rem}.md\:text-6xl{font-size:3.75rem;line-height:1}.md\:text-xl{font-size:1.25rem;line-height:1.75rem}}@media (min-width: 1024px){.lg\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.lg\:px-6{padding-left:1.5rem;padding-right:1.5rem}}</style></head>
+<body class="antialiased">
+
+    <header id="header" class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 lg:px-6 py-4">
+            <div class="flex justify-between items-center">
+                <a href="#" class="text-xl font-bold secondary-text">Embeddable UI Strategy</a>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#market" class="nav-link font-medium text-gray-600">Market</a>
+                    <a href="#providers" class="nav-link font-medium text-gray-600">Providers</a>
+                    <a href="#playbook" class="nav-link font-medium text-gray-600">Playbook</a>
+                    <a href="#future" class="nav-link font-medium text-gray-600 active">Future</a>
+                </div>
+                <div class="md:hidden">
+                    <button id="menu-btn" class="focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="mobile-menu" class="hidden md:hidden mt-4">
+                <a href="#market" class="block py-2 nav-link">Market</a>
+                <a href="#providers" class="block py-2 nav-link">Providers</a>
+                <a href="#playbook" class="block py-2 nav-link">Playbook</a>
+                <a href="#future" class="block py-2 nav-link active">Future</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero" class="py-20 bg-white">
+            <div class="container mx-auto px-4 text-center">
+                <h1 class="text-4xl md:text-6xl font-bold secondary-text leading-tight">Architecting the Future of SaaS</h1>
+                <p class="mt-4 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">An interactive guide to the strategic power of embeddable UI components, now enhanced with AI-powered insights from Gemini.</p>
+                <a href="#providers" class="mt-8 inline-block accent-bg text-white font-bold py-3 px-8 rounded-full transition-transform transform hover:scale-105">Explore Providers</a>
+            </div>
+        </section>
+
+        <section id="market" class="py-20">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl font-bold text-center secondary-text">The Evolving Landscape</h2>
+                <p class="text-center text-gray-600 mt-2 mb-12 max-w-2xl mx-auto">Embeddable UIs have moved beyond simple widgets to become deeply integrated experiences, driven by key market forces and delivering significant platform benefits.</p>
+                
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="card p-6 text-center">
+                        <div class="inline-block p-4 accent-bg rounded-full mb-4">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-2">Key Drivers</h3>
+                        <p class="text-gray-600">Fintech disruption (BaaS), SaaS evolution to all-in-one platforms, and rising user expectations for seamless, contextual experiences are fueling adoption.</p>
+                    </div>
+                    <div class="card p-6 text-center">
+                         <div class="inline-block p-4 secondary-bg rounded-full mb-4">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-2">Core Benefits</h3>
+                        <p class="text-gray-600">Enhanced UX, increased user engagement and retention, new revenue streams (e.g., interchange fees), and significant competitive differentiation.</p>
+                    </div>
+                    <div class="card p-6 text-center">
+                        <div class="inline-block p-4 accent-bg rounded-full mb-4">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-2">Strategic Goal</h3>
+                        <p class="text-gray-600">To make external functionalities, especially financial operations, feel like an intrinsic, "invisible" part of the host platform's native workflow.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="providers" class="py-20 subtle-bg">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl font-bold text-center secondary-text">Provider Comparison Hub</h2>
+                <p class="text-center text-gray-600 mt-2 mb-12 max-w-2xl mx-auto">Interactively compare leading Fintech providers. Analyze their offerings, customization methods, and developer experience to find the best fit for your platform.</p>
+
+                <div class="card p-6 md:p-8 mb-12">
+                    <h3 class="font-semibold text-xl mb-4 text-center">Compare Provider Ratings</h3>
+                    <div class="flex flex-wrap justify-center gap-4 mb-6">
+                        <div>
+                            <label for="metric-select" class="font-medium text-sm text-gray-700">Select Metric:</label>
+                            <select id="metric-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                <option value="flexibility" selected="">Flexibility</option>
+                                <option value="speed">Speed to Market</option>
+                                <option value="customization">Customization Depth</option>
+                                <option value="dx">Developer Experience</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="providerChart" height="800" style="display: block; box-sizing: border-box; height: 400px; width: 670px;" width="1340"></canvas>
+                    </div>
+                </div>
+
+                <div class="card p-6 md:p-8">
+                    <h3 class="font-semibold text-xl mb-6 text-center">Provider Offerings at a Glance</h3>
+                     <div class="w-full overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="py-2 px-3 bg-gray-100 font-semibold text-sm text-gray-600 border-b">Provider</th>
+                                    <th class="py-2 px-3 bg-gray-100 font-semibold text-sm text-gray-600 border-b text-center">Onboarding</th>
+                                    <th class="py-2 px-3 bg-gray-100 font-semibold text-sm text-gray-600 border-b text-center">Payments</th>
+                                    <th class="py-2 px-3 bg-gray-100 font-semibold text-sm text-gray-600 border-b text-center">Card Mgmt</th>
+                                    <th class="py-2 px-3 bg-gray-100 font-semibold text-sm text-gray-600 border-b text-center">Acct Mgmt</th>
+                                </tr>
+                            </thead>
+                            <tbody id="provider-table-body"><tr class="border-b hover:bg-gray-50 cursor-pointer" data-provider-index="0">
+                        <td class="py-3 px-3 font-medium">Stripe</td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                    </tr><tr class="border-b hover:bg-gray-50 cursor-pointer" data-provider-index="1">
+                        <td class="py-3 px-3 font-medium">Unit.co</td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                    </tr><tr class="border-b hover:bg-gray-50 cursor-pointer" data-provider-index="2">
+                        <td class="py-3 px-3 font-medium">Marqeta</td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-red-500">✗</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                    </tr><tr class="border-b hover:bg-gray-50 cursor-pointer" data-provider-index="3">
+                        <td class="py-3 px-3 font-medium">Moov</td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-red-500">✗</span></td>
+                    </tr><tr class="border-b hover:bg-gray-50 cursor-pointer" data-provider-index="4">
+                        <td class="py-3 px-3 font-medium">Plaid</td>
+                        <td class="py-3 px-3 text-center"><span class="text-red-500">✗</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-red-500">✗</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-red-500">✗</span></td>
+                    </tr><tr class="border-b hover:bg-gray-50 cursor-pointer" data-provider-index="5">
+                        <td class="py-3 px-3 font-medium">Bond</td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-red-500">✗</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                        <td class="py-3 px-3 text-center"><span class="text-green-500">✓</span></td>
+                    </tr></tbody>
+                        </table>
+                    </div>
+                    <div id="provider-details" class="mt-8"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="playbook" class="py-20 bg-white">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl font-bold text-center secondary-text">The Embeddable UI Playbook</h2>
+                <p class="text-center text-gray-600 mt-2 mb-12 max-w-2xl mx-auto">A guide to the strategic and design principles for building world-class embeddable components, from product discovery to launch.</p>
+
+                <div class="max-w-4xl mx-auto">
+                    <div class="mb-12">
+                        <h3 class="text-2xl font-semibold mb-6 text-center accent-text">Product Development Lifecycle</h3>
+                        <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-2">
+                             <div class="process-step flex-1 text-center p-4 border-2 border-gray-200 rounded-lg w-full">
+                                <h4 class="font-bold">1. Discovery</h4>
+                                <p class="text-sm text-gray-500">Dual-track research on developer &amp; end-user needs.</p>
+                             </div>
+                             <div class="text-2xl secondary-text hidden md:block">→</div>
+                             <div class="process-step flex-1 text-center p-4 border-2 border-gray-200 rounded-lg w-full">
+                                <h4 class="font-bold">2. Define &amp; Prioritize</h4>
+                                <p class="text-sm text-gray-500">Craft PRDs, use frameworks like RICE/Value vs Effort.</p>
+                             </div>
+                             <div class="text-2xl secondary-text hidden md:block">→</div>
+                             <div class="process-step flex-1 text-center p-4 border-2 border-gray-200 rounded-lg w-full">
+                                <h4 class="font-bold">3. Prototype &amp; Test</h4>
+                                <p class="text-sm text-gray-500">Use Figma/Storybook, test with both user groups.</p>
+                             </div>
+                              <div class="text-2xl secondary-text hidden md:block">→</div>
+                             <div class="process-step flex-1 text-center p-4 border-2 border-gray-200 rounded-lg w-full">
+                                <h4 class="font-bold">4. Launch &amp; Measure</h4>
+                                <p class="text-sm text-gray-500">Internal alignment (6-Pagers), track dev &amp; user KPIs.</p>
+                             </div>
+                        </div>
+                    </div>
+
+                    <div id="accordion-container"><div class="border-b"><button class="w-full text-left py-4 px-2 flex justify-between items-center focus:outline-none">
+                        <span class="font-semibold text-lg secondary-text">UX/UI Principles for Embedded Contexts</span>
+                        <span class="transform transition-transform duration-300">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    </button><div class="accordion-content"><ul class="list-disc list-inside space-y-2 text-gray-600"><li><strong>Seamless Integration:</strong> Must feel like a native part of the host app. Use robust theming.</li><li><strong>Context-Awareness:</strong> Adapt to user behavior and task. Provide in-context help and use progressive disclosure.</li><li><strong>Security by Design:</strong> Especially in fintech, build trust with visible security cues and compliant infrastructure (e.g., PCI via iframes).</li><li><strong>Accessibility:</strong> Adhere to WCAG standards for inclusive design.</li><li><strong>Mobile-First &amp; Responsive:</strong> Ensure a flawless experience on all screen sizes.</li></ul></div></div><div class="border-b"><button class="w-full text-left py-4 px-2 flex justify-between items-center focus:outline-none">
+                        <span class="font-semibold text-lg secondary-text">Theming and Customization Strategies</span>
+                        <span class="transform transition-transform duration-300">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    </button><div class="accordion-content"><ul class="list-disc list-inside space-y-2 text-gray-600"><li><strong>Design Tokens:</strong> Use as a single source of truth for design decisions (colors, spacing, etc.).</li><li><strong>CSS Variables:</strong> Leverage for powerful, runtime theme changes.</li><li><strong>API vs. Studios:</strong> Offer a choice between deep programmatic control (like Stripe's Appearance API) and user-friendly visual builders (like Marqeta's Studio).</li><li><strong>Developer Experience (DX):</strong> Provide clear documentation, Figma toolkits, and SDK support for customization.</li></ul></div></div><div class="border-b"><button class="w-full text-left py-4 px-2 flex justify-between items-center focus:outline-none">
+                        <span class="font-semibold text-lg secondary-text">SDKs and Developer Portals</span>
+                        <span class="transform transition-transform duration-300">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    </button><div class="accordion-content"><ul class="list-disc list-inside space-y-2 text-gray-600"><li><strong>High-Quality SDKs:</strong> Abstract complexity, follow clean code principles, and provide excellent documentation with code samples.</li><li><strong>Developer-Friendly Portals:</strong> Must include interactive API docs, sandbox environments, API key management, and quick start guides.</li><li><strong>Documentation is a Product:</strong> Treat SDK documentation as a core feature, essential for developer adoption.</li></ul></div></div><div class="border-b"><button class="w-full text-left py-4 px-2 flex justify-between items-center focus:outline-none">
+                        <span class="font-semibold text-lg secondary-text">Measuring Success with KPIs</span>
+                        <span class="transform transition-transform duration-300">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    </button><div class="accordion-content"><ul class="list-disc list-inside space-y-2 text-gray-600"><li><strong>Developer Adoption:</strong> Track SDK installs, active integrations, API call volume, and "Time to Hello World".</li><li><strong>End-User Engagement:</strong> Monitor task success rates, feature adoption, user retention, and conversion rates.</li><li><strong>Usability Metrics:</strong> Measure error rates, time-to-task completion, and gather qualitative feedback on ease of use.</li></ul></div></div></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="future" class="py-20 subtle-bg">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl font-bold text-center secondary-text">Future Outlook</h2>
+                 <p class="text-center text-gray-600 mt-2 mb-12 max-w-2xl mx-auto">The next wave of embeddable UIs will be more intelligent, customizable, and deeply integrated, transforming user experiences.</p>
+                <div class="grid md:grid-cols-2 lg:grid-cols-2 gap-8" id="future-trends-container"><div class="card p-6 flex flex-col">
+                        <h3 class="text-xl font-semibold mb-2 accent-text">AI Personalization</h3>
+                        <p class="text-gray-600 flex-grow">Adaptive interfaces that personalize content and functionality in real-time based on user behavior and predictive UX.</p>
+                        <div class="mt-4">
+                            <button data-trend-title="AI Personalization" class="gemini-btn use-case-btn text-white font-bold py-2 px-4 rounded-full inline-flex items-center">
+                                ✨ Explore a Use Case
+                            </button>
+                        </div>
+                    </div><div class="card p-6 flex flex-col">
+                        <h3 class="text-xl font-semibold mb-2 accent-text">No-Code/Low-Code</h3>
+                        <p class="text-gray-600 flex-grow">Empowering end-users to customize workflows and extend platform functionality without needing to write code.</p>
+                        <div class="mt-4">
+                            <button data-trend-title="No-Code/Low-Code" class="gemini-btn use-case-btn text-white font-bold py-2 px-4 rounded-full inline-flex items-center">
+                                ✨ Explore a Use Case
+                            </button>
+                        </div>
+                    </div><div class="card p-6 flex flex-col">
+                        <h3 class="text-xl font-semibold mb-2 accent-text">Integrated Analytics</h3>
+                        <p class="text-gray-600 flex-grow">Components evolving into interactive data hubs, providing contextual BI and self-service reporting directly in-app.</p>
+                        <div class="mt-4">
+                            <button data-trend-title="Integrated Analytics" class="gemini-btn use-case-btn text-white font-bold py-2 px-4 rounded-full inline-flex items-center">
+                                ✨ Explore a Use Case
+                            </button>
+                        </div>
+                    </div><div class="card p-6 flex flex-col">
+                        <h3 class="text-xl font-semibold mb-2 accent-text">BaaS Convergence</h3>
+                        <p class="text-gray-600 flex-grow">The rise of embedded "financial operations suites" that combine banking, payments, and lending into a single, cohesive experience.</p>
+                        <div class="mt-4">
+                            <button data-trend-title="BaaS Convergence" class="gemini-btn use-case-btn text-white font-bold py-2 px-4 rounded-full inline-flex items-center">
+                                ✨ Explore a Use Case
+                            </button>
+                        </div>
+                    </div></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-4 text-center">
+            <p>Interactive Report generated from "Architecting the Future: A Strategic Analysis of Embeddable UI Components".</p>
+            <p class="text-sm text-gray-400 mt-2">This is a conceptual application based on the provided research material.</p>
+            <div class="mt-4">
+                <button id="download-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-full inline-flex items-center transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Download HTML File
+                </button>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Modal Structure -->
+    <div id="use-case-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 opacity-0">
+        <div id="use-case-modal-content" class="bg-white rounded-lg shadow-2xl p-8 max-w-lg w-full transform scale-95">
+            <div class="flex justify-between items-start">
+                 <h3 id="modal-title" class="text-2xl font-bold secondary-text"></h3>
+                 <button id="modal-close-btn" class="text-gray-500 hover:text-gray-800 text-3xl leading-none">×</button>
+            </div>
+            <div id="modal-body" class="mt-4"></div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const data = {
+                providers: [
+                    { name: 'Stripe', logo: 'S', ratings: { flexibility: 9, speed: 6, customization: 9, dx: 9 }, offerings: { onboarding: true, payments: true, card: true, acct: true }, details: "Offers granular Elements for payments and comprehensive Connect components for full account management. Deep customization via Appearance API. Excellent developer experience with strong docs and Figma toolkits." },
+                    { name: 'Unit.co', logo: 'U', ratings: { flexibility: 7, speed: 9, customization: 8, dx: 8 }, offerings: { onboarding: true, payments: true, card: true, acct: true }, details: "Provides a full white-label app for maximum speed or individual components. Strong theming engine for branding. Great for SaaS wanting a turnkey banking solution." },
+                    { name: 'Marqeta', logo: 'M', ratings: { flexibility: 6, speed: 7, customization: 8, dx: 7 }, offerings: { onboarding: true, payments: false, card: true, acct: true }, details: "Specializes in card program management with a focus on security (PCI via iframes). Interactive 'Studio' for visual theming and customization. Ideal for brands building custom card programs." },
+                    { name: 'Moov', logo: 'M', ratings: { flexibility: 8, speed: 8, customization: 7, dx: 8 }, offerings: { onboarding: true, payments: true, card: true, acct: false }, details: "Offers 'Moov Drops' as native web components for payments and onboarding. Simple theming via CSS variables. Developer-centric with a good SDK and data sync features." },
+                    { name: 'Plaid', logo: 'P', ratings: { flexibility: 5, speed: 8, customization: 6, dx: 8 }, offerings: { onboarding: false, payments: true, card: false, acct: false }, details: "Highly specialized in financial account aggregation and linking (Auth, Balance). 'Embedded Link' component is their core UI offering. Essential for apps needing to connect to user bank accounts." },
+                    { name: 'Bond', logo: 'B', ratings: { flexibility: 6, speed: 9, customization: 7, dx: 7 }, offerings: { onboarding: true, payments: false, card: true, acct: true }, details: "Offers a choice between a no-code 'Embedded App' for rapid launch and custom API/SDK integration for deeper control over card programs." },
+                ],
+                playbook: [
+                    { title: 'UX/UI Principles for Embedded Contexts', content: ['<strong>Seamless Integration:</strong> Must feel like a native part of the host app. Use robust theming.', '<strong>Context-Awareness:</strong> Adapt to user behavior and task. Provide in-context help and use progressive disclosure.', '<strong>Security by Design:</strong> Especially in fintech, build trust with visible security cues and compliant infrastructure (e.g., PCI via iframes).', '<strong>Accessibility:</strong> Adhere to WCAG standards for inclusive design.', '<strong>Mobile-First & Responsive:</strong> Ensure a flawless experience on all screen sizes.'] },
+                    { title: 'Theming and Customization Strategies', content: ['<strong>Design Tokens:</strong> Use as a single source of truth for design decisions (colors, spacing, etc.).', '<strong>CSS Variables:</strong> Leverage for powerful, runtime theme changes.', '<strong>API vs. Studios:</strong> Offer a choice between deep programmatic control (like Stripe\'s Appearance API) and user-friendly visual builders (like Marqeta\'s Studio).', '<strong>Developer Experience (DX):</strong> Provide clear documentation, Figma toolkits, and SDK support for customization.'] },
+                    { title: 'SDKs and Developer Portals', content: ['<strong>High-Quality SDKs:</strong> Abstract complexity, follow clean code principles, and provide excellent documentation with code samples.', '<strong>Developer-Friendly Portals:</strong> Must include interactive API docs, sandbox environments, API key management, and quick start guides.', '<strong>Documentation is a Product:</strong> Treat SDK documentation as a core feature, essential for developer adoption.'] },
+                    { title: 'Measuring Success with KPIs', content: ['<strong>Developer Adoption:</strong> Track SDK installs, active integrations, API call volume, and "Time to Hello World".', '<strong>End-User Engagement:</strong> Monitor task success rates, feature adoption, user retention, and conversion rates.', '<strong>Usability Metrics:</strong> Measure error rates, time-to-task completion, and gather qualitative feedback on ease of use.'] }
+                ],
+                future_trends: [
+                    { title: 'AI Personalization', description: 'Adaptive interfaces that personalize content and functionality in real-time based on user behavior and predictive UX.' },
+                    { title: 'No-Code/Low-Code', description: 'Empowering end-users to customize workflows and extend platform functionality without needing to write code.' },
+                    { title: 'Integrated Analytics', description: 'Components evolving into interactive data hubs, providing contextual BI and self-service reporting directly in-app.' },
+                    { title: 'BaaS Convergence', description: 'The rise of embedded "financial operations suites" that combine banking, payments, and lending into a single, cohesive experience.' }
+                ]
+            };
+
+            let providerChart;
+
+            async function generateWithGemini(prompt) {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [{ text: prompt }]
+                    }]
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                        console.error('Unexpected API response structure:', result);
+                        return 'Could not generate a response. Please try again.';
+                    }
+                } catch (error) {
+                    console.error('Error calling Gemini API:', error);
+                    return `Error: Could not retrieve analysis. ${error.message}`;
+                }
+            }
+
+            function renderChart(metric) {
+                const ctx = document.getElementById('providerChart').getContext('2d');
+                const chartData = {
+                    labels: data.providers.map(p => p.name),
+                    datasets: [{
+                        label: metric.charAt(0).toUpperCase() + metric.slice(1),
+                        data: data.providers.map(p => p.ratings[metric]),
+                        backgroundColor: 'rgba(107, 138, 154, 0.6)',
+                        borderColor: 'rgba(107, 138, 154, 1)',
+                        borderWidth: 1
+                    }]
+                };
+
+                if (providerChart) {
+                    providerChart.destroy();
+                }
+
+                providerChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, max: 10, grid: { color: '#E0E0E0' } },
+                            x: { grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.raw}/10`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function populateProviderTable() {
+                const tableBody = document.getElementById('provider-table-body');
+                const detailsContainer = document.getElementById('provider-details');
+                tableBody.innerHTML = '';
+                
+                data.providers.forEach((provider, index) => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50 cursor-pointer';
+                    row.dataset.providerIndex = index;
+
+                    const check = '<span class="text-green-500">✓</span>';
+                    const cross = '<span class="text-red-500">✗</span>';
+
+                    row.innerHTML = `
+                        <td class="py-3 px-3 font-medium">${provider.name}</td>
+                        <td class="py-3 px-3 text-center">${provider.offerings.onboarding ? check : cross}</td>
+                        <td class="py-3 px-3 text-center">${provider.offerings.payments ? check : cross}</td>
+                        <td class="py-3 px-3 text-center">${provider.offerings.card ? check : cross}</td>
+                        <td class="py-3 px-3 text-center">${provider.offerings.acct ? check : cross}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                tableBody.addEventListener('click', (e) => {
+                    const row = e.target.closest('tr');
+                    if(row) {
+                        const providerIndex = row.dataset.providerIndex;
+                        const provider = data.providers[providerIndex];
+                        
+                        document.querySelectorAll('#provider-table-body tr').forEach(r => r.classList.remove('bg-blue-50'));
+                        row.classList.add('bg-blue-50');
+
+                        detailsContainer.innerHTML = `
+                            <div class="p-4 subtle-bg rounded-lg">
+                                <h4 class="font-bold text-lg accent-text">${provider.name}</h4>
+                                <p class="mt-2 text-gray-700">${provider.details}</p>
+                                <div class="mt-4">
+                                    <button id="generate-fit-btn" class="gemini-btn text-white font-bold py-2 px-4 rounded-full inline-flex items-center">
+                                        ✨ Generate Strategic Fit Analysis
+                                    </button>
+                                </div>
+                                <div id="fit-analysis-output" class="mt-4 p-4 bg-white rounded-md border text-gray-700" style="display: none;"></div>
+                            </div>
+                        `;
+
+                        document.getElementById('generate-fit-btn').addEventListener('click', async function() {
+                           const outputDiv = document.getElementById('fit-analysis-output');
+                           const button = this;
+                           button.innerHTML = '<span class="loader"></span><span class="ml-2">Analyzing...</span>';
+                           button.disabled = true;
+                           outputDiv.style.display = 'block';
+                           outputDiv.innerHTML = 'Generating analysis with Gemini...';
+                           
+                           const prompt = `You are a product strategy consultant for SaaS companies. Based on the following data for a fintech provider, write a concise, one-paragraph strategic fit analysis (3-4 sentences). Explain what type of SaaS platform would benefit most from this provider and why, highlighting their key strengths. Provider Data: Name: ${provider.name}, Flexibility Rating: ${provider.ratings.flexibility}/10, Speed to Market Rating: ${provider.ratings.speed}/10, Customization Depth Rating: ${provider.ratings.customization}/10, Developer Experience Rating: ${provider.ratings.dx}/10. Core Offerings & Details: ${provider.details}`;
+                           
+                           const analysis = await generateWithGemini(prompt);
+                           outputDiv.innerHTML = analysis.replace(/\n/g, '<br>');
+                           button.innerHTML = '✨ Generate Strategic Fit Analysis';
+                           button.disabled = false;
+                        });
+                    }
+                });
+            }
+            
+            function createAccordion() {
+                const container = document.getElementById('accordion-container');
+                container.innerHTML = '';
+                data.playbook.forEach((item) => {
+                    const accordionItem = document.createElement('div');
+                    accordionItem.className = 'border-b';
+
+                    const button = document.createElement('button');
+                    button.className = 'w-full text-left py-4 px-2 flex justify-between items-center focus:outline-none';
+                    button.innerHTML = `
+                        <span class="font-semibold text-lg secondary-text">${item.title}</span>
+                        <span class="transform transition-transform duration-300">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    `;
+
+                    const content = document.createElement('div');
+                    content.className = 'accordion-content';
+                    
+                    const list = document.createElement('ul');
+                    list.className = 'list-disc list-inside space-y-2 text-gray-600';
+                    item.content.forEach(point => {
+                        const listItem = document.createElement('li');
+                        listItem.innerHTML = point;
+                        list.appendChild(listItem);
+                    });
+                    
+                    content.appendChild(list);
+                    accordionItem.appendChild(button);
+                    accordionItem.appendChild(content);
+                    container.appendChild(accordionItem);
+
+                    button.addEventListener('click', () => {
+                        const isExpanded = content.classList.contains('expanded');
+                        document.querySelectorAll('.accordion-content').forEach(el => {
+                            el.style.maxHeight = '0px';
+                            el.classList.remove('expanded');
+                            el.previousElementSibling.querySelector('span:last-child').classList.remove('rotate-180');
+                        });
+                        
+                        if (!isExpanded) {
+                            content.style.maxHeight = content.scrollHeight + 'px';
+                            content.classList.add('expanded');
+                            button.querySelector('span:last-child').classList.add('rotate-180');
+                        }
+                    });
+                });
+            }
+
+            function populateFutureTrends() {
+                const container = document.getElementById('future-trends-container');
+                const modal = document.getElementById('use-case-modal');
+                const modalContent = document.getElementById('use-case-modal-content');
+                const modalTitle = document.getElementById('modal-title');
+                const modalBody = document.getElementById('modal-body');
+                const modalCloseBtn = document.getElementById('modal-close-btn');
+
+                container.innerHTML = '';
+                data.future_trends.forEach((trend) => {
+                    const card = document.createElement('div');
+                    card.className = 'card p-6 flex flex-col';
+                    card.innerHTML = `
+                        <h3 class="text-xl font-semibold mb-2 accent-text">${trend.title}</h3>
+                        <p class="text-gray-600 flex-grow">${trend.description}</p>
+                        <div class="mt-4">
+                            <button data-trend-title="${trend.title}" class="gemini-btn use-case-btn text-white font-bold py-2 px-4 rounded-full inline-flex items-center">
+                                ✨ Explore a Use Case
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                document.querySelectorAll('.use-case-btn').forEach(button => {
+                    button.addEventListener('click', async function() {
+                        const trendTitle = this.dataset.trendTitle;
+                        this.innerHTML = '<span class="loader"></span><span class="ml-2">Imagining...</span>';
+                        this.disabled = true;
+
+                        const prompt = `You are a futurist product designer. Generate a hypothetical product use case for the trend of '${trendTitle}' in embedded finance. Respond ONLY with a JSON object with these exact keys: "useCaseTitle", "userPersona", "description", "keyFeatures" (as an array of strings), and "impactMetric".`;
+                        
+                        let useCaseJson;
+                        const response = await generateWithGemini(prompt);
+                        
+                        if(response.startsWith('Error:')) {
+                            modalTitle.textContent = "Error Generating Use Case";
+                            modalBody.innerHTML = `<p>${response}</p>`;
+                        } else {
+                            try {
+                                const cleanedResponse = response.replace(/^```json\n/, '').replace(/\n```$/, '');
+                                useCaseJson = JSON.parse(cleanedResponse);
+
+                                modalTitle.textContent = useCaseJson.useCaseTitle;
+                                modalBody.innerHTML = `
+                                    <p class="mb-4">${useCaseJson.description}</p>
+                                    <div class="mb-4">
+                                        <strong class="secondary-text">👤 User Persona:</strong>
+                                        <p class="text-gray-700">${useCaseJson.userPersona}</p>
+                                    </div>
+                                    <div class="mb-4">
+                                        <strong class="secondary-text">✅ Key Features:</strong>
+                                        <ul class="list-disc list-inside mt-1 text-gray-700">
+                                            ${useCaseJson.keyFeatures.map(f => `<li>${f}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <strong class="secondary-text">📈 Primary Impact:</strong>
+                                        <p class="text-gray-700">${useCaseJson.impactMetric}</p>
+                                    </div>
+                                `;
+                            } catch (error) {
+                                console.error("Error parsing Gemini response:", error);
+                                modalTitle.textContent = "Parsing Error";
+                                modalBody.innerHTML = "<p>The response from the AI was not in the expected format. Please try again.</p>";
+                            }
+                        }
+                        
+                        modal.classList.remove('hidden');
+                        setTimeout(() => {
+                            modal.classList.remove('opacity-0');
+                            modalContent.classList.remove('scale-95');
+                        }, 10);
+                        
+                        this.innerHTML = '✨ Explore a Use Case';
+                        this.disabled = false;
+                    });
+                });
+
+                function closeModal() {
+                    modal.classList.add('opacity-0');
+                    modalContent.classList.add('scale-95');
+                    setTimeout(() => modal.classList.add('hidden'), 300);
+                }
+
+                modalCloseBtn.addEventListener('click', closeModal);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeModal();
+                    }
+                });
+            }
+
+            document.getElementById('metric-select').addEventListener('change', (e) => {
+                renderChart(e.target.value);
+            });
+            
+            const menuBtn = document.getElementById('menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            menuBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+            
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    if(this.closest('#mobile-menu')) {
+                         mobileMenu.classList.add('hidden');
+                    }
+                    if (this.hash !== "") {
+                        e.preventDefault();
+                        const hash = this.hash;
+                        const targetElement = document.querySelector(hash);
+                        if (targetElement) {
+                            window.scrollTo({
+                                top: targetElement.offsetTop - 80, // Offset for sticky header
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                });
+            });
+
+            window.addEventListener('scroll', () => {
+                const sections = document.querySelectorAll('main section');
+                const navLinks = document.querySelectorAll('.nav-link');
+                let currentSection = '';
+
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 100) {
+                        currentSection = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if(link.getAttribute('href') === `#${currentSection}`) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+
+            document.getElementById('download-btn').addEventListener('click', function() {
+                const htmlContent = document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'interactive-report.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+            renderChart('flexibility');
+            populateProviderTable();
+            createAccordion();
+            populateFutureTrends();
+        });
+    </script>
+
+
+</body></html>
